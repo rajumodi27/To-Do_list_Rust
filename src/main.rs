@@ -91,12 +91,13 @@ fn mark_task(todos: &mut Vec<Todo>) {
 
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
-    let index: usize = match input.trim().parse() {
+    let index: usize = match input.trim().parse::<usize>() {
         Ok(num) => num - 1,
         Err(_) => {
             println!("Invalid number!");
             return;
         }
+    
     };
 
     if index < todos.len() {
