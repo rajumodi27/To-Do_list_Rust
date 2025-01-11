@@ -1,0 +1,3 @@
+readin|true
+swimming|false
+3 asd|false
