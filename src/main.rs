@@ -1,6 +1,4 @@
-use std::fs::{File, OpenOptions};
-use std::io::{self, Write, BufRead, BufReader};
-use std::path::Path;
+use std::io;
 
 #[derive(Debug)]
 struct Todo {
@@ -9,7 +7,7 @@ struct Todo {
 }
 
 impl Todo {
-    fn new(task: &str) -> Todo {
+    fn new(task: &str) -> Self {
         Todo {
             task: task.to_string(),
             completed: false,
@@ -20,136 +18,91 @@ impl Todo {
         self.completed = true;
     }
 
-    fn display(&self) {
-        println!("[{}] {}", if self.completed { "X" } else { " " }, self.task);
+    fn display(&self, index: usize) {
+        println!(
+            "{}. [{}] {}",
+            index + 1,
+            if self.completed { "X" } else { " " },
+            self.task
+        );
     }
 }
 
 fn main() {
-    println!("Welcome to the To-Do List app!");
-
-    // Simple logic to interact with the user
+    let mut todos: Vec<Todo> = Vec::new();
     loop {
-        println!("\nMenu:");
-        println!("1. Add a task");
-        println!("2. List tasks");
-        println!("3. Mark task as completed");
+        println!("\n--- To-Do List ---");
+        println!("1. Add Task");
+        println!("2. View Tasks");
+        println!("3. Mark Task as Completed");
         println!("4. Exit");
 
         let mut choice = String::new();
         io::stdin().read_line(&mut choice).unwrap();
-        let choice: i32 = choice.trim().parse().unwrap();
+        let choice: u32 = match choice.trim().parse() {
+            Ok(num) => num,
+            Err(_) => {
+                println!("Please enter a valid number!");
+                continue;
+            }
+        };
 
         match choice {
-            1 => add_task(),
-            2 => list_tasks(),
-            3 => mark_completed(),
-            4 => break,
+            1 => add_task(&mut todos),
+            2 => view_tasks(&todos),
+            3 => mark_task(&mut todos),
+            4 => {
+                println!("Goodbye!");
+                break;
+            }
             _ => println!("Invalid choice, please try again."),
         }
     }
 }
 
-fn add_task() {
-    println!("Enter the task:");
+fn add_task(todos: &mut Vec<Todo>) {
+    println!("Enter a new task:");
     let mut task = String::new();
     io::stdin().read_line(&mut task).unwrap();
     let task = task.trim();
-
-    let todo = Todo::new(task);
-    save_task(todo);
-
-    println!("Task added successfully!");
+    todos.push(Todo::new(task));
+    println!("Task added: {}", task);
 }
 
-fn save_task(todo: Todo) {
-    let path = Path::new("tasks.txt");
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-        .unwrap();
-
-    writeln!(file, "{}|{}", todo.task, todo.completed).unwrap();
-}
-
-fn list_tasks() {
-    let path = Path::new("tasks.txt");
-    if !path.exists() {
-        println!("No tasks to show.");
-        return;
-    }
-
-    let file = File::open(path).unwrap();
-    let reader = BufReader::new(file);
-
-    for line in reader.lines() {
-        let line = line.unwrap();
-        let parts: Vec<&str> = line.split('|').collect();
-        let task = parts[0];
-        let completed = parts[1] == "true";
-
-        let todo = Todo {
-            task: task.to_string(),
-            completed,
-        };
-
-        todo.display();
-    }
-}
-
-fn mark_completed() {
-    let path = Path::new("tasks.txt");
-    if !path.exists() {
-        println!("No tasks to mark as completed.");
-        return;
-    }
-
-    let mut tasks: Vec<Todo> = Vec::new();
-    let file = File::open(path).unwrap();
-    let reader = BufReader::new(file);
-
-    for line in reader.lines() {
-        let line = line.unwrap();
-        let parts: Vec<&str> = line.split('|').collect();
-        let task = parts[0];
-        let completed = parts[1] == "true";
-
-        tasks.push(Todo {
-            task: task.to_string(),
-            completed,
-        });
-    }
-
-    println!("Enter the task number to mark as completed:");
-    for (i, task) in tasks.iter().enumerate() {
-        println!("{}. {}", i + 1, task.task);
-    }
-
-    let mut task_number = String::new();
-    io::stdin().read_line(&mut task_number).unwrap();
-    let task_number: usize = task_number.trim().parse().unwrap();
-
-    if task_number > 0 && task_number <= tasks.len() {
-        let mut task = &mut tasks[task_number - 1];
-        task.mark_completed();
-        println!("Task marked as completed.");
-        save_all_tasks(&tasks);
+fn view_tasks(todos: &Vec<Todo>) {
+    if todos.is_empty() {
+        println!("No tasks yet!");
     } else {
-        println!("Invalid task number.");
+        println!("Here are your tasks:");
+        for (i, task) in todos.iter().enumerate() {
+            task.display(i);
+        }
     }
 }
 
-fn save_all_tasks(tasks: &Vec<Todo>) {
-    let path = Path::new("tasks.txt");
-    let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(&path)
-        .unwrap();
+fn mark_task(todos: &mut Vec<Todo>) {
+    if todos.is_empty() {
+        println!("No tasks to mark as completed!");
+        return;
+    }
 
-    for task in tasks {
-        writeln!(file, "{}|{}", task.task, task.completed).unwrap();
+    println!("Enter the number of the task to mark as completed:");
+    view_tasks(todos);
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    let index: usize = match input.trim().parse() {
+        Ok(num) => num - 1,
+        Err(_) => {
+            println!("Invalid number!");
+            return;
+        }
+    };
+
+    if index < todos.len() {
+        todos[index].mark_completed();
+        println!("Task marked as completed: {}", todos[index].task);
+    } else {
+        println!("Task number out of range!");
     }
 }
